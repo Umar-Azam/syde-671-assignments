@@ -1,1 +1,386 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SYDE671 Assignment 1</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  margin: 20px;
+}
+img {
+  max-width: 100%;
+  height: auto;
+}
+.image-row {
+  display: flex;
+  gap: 10px;
+}
+.image-row > div {
+  flex: 1;
+  min-width: 0;
+}
+pre {
+  white-space: pre-wrap;
+}
+</style>
+</head>
+<body>
+<h1>SYDE671 Assignment 1</h1>
 
+<h2>Part 1 - Camera Exercise</h2>
+
+<div class="image-row">
+  <div><img src="./images/p1_image1.jpg" alt="p1_image1.jpg"></div>
+  <div><img src="./images/p1_image2.jpg" alt="p1_image2.jpg"></div>
+</div>
+
+<p>This is my dear friend, the UWaterloo Stuffed Goose that volunteered for this portion of the assignment. The distortion appears to be due to the fact that at very close distances the facial features are a significant ratio of the camera distance. For a point on the facial geometry (X,Y,Z) for a pinhole camera at origin. <br>
+When the camera if further away Z &gt;&gt; ΔZ<br>
+x = fX/(Z + ΔZ) ≈ fX/Z<br>
+Same for y image coordinate. The image appears to be flattened.</p>
+
+<p>But when Z is closer in value to ΔZ, we see significant distortion in the x,y values as the total Z value is closer to the facial geometry depth.</p>
+
+<p>We see the following images of a walkway show the same compression for the same reasons</p>
+
+<div class="image-row">
+  <div><img src="./images/p1_image3.jpg" alt="p1_image3.jpg"></div>
+  <div><img src="./images/p1_image4.jpg" alt="p1_image4.jpg"></div>
+</div>
+
+<p>A Dolly Zoom of this scene is in the gif below :</p>
+
+<p><img src="./images/p1_dolly.gif" alt="p1_dolly.gif"></p>
+
+<h2>Part 2 - Colorizing the Prokudin-Gorskii photo collection</h2>
+
+<p>Some of the oldest colored images are the Prokudin-Gorskii glass plate images that were recorded using a collection of three cameras, each taking the photo through a Red, Green and Blue filter.</p>
+
+<p>Our goal in this blog is to explore the process of taking the digitized images and aligning them to visualize the colored scene being captured.</p>
+
+<p>We first look at what the raw images look like in this small collection. We notice that some of the images are small, but some are quite large. So lets start with one of the smaller images and see what the raw digitized form looks like.</p>
+
+<p><img src="./images/image1.jpg" alt="image1.jpg"></p>
+
+<p>We notice that all the images , despite having different sizes are single channel and structured as this vertical stack of three. From the available information about these images we know that the top image corresponds to the Blue channel, the middle corresponds to Green and the bottom corresponds to Red.</p>
+
+<p>Lets first try a naive approach and just split the image at one third the height to separate the three images. See what that looks like.</p>
+
+<div class="image-row">
+  <div><img src="./images/image2.jpg" alt="image2.jpg"></div>
+  <div><img src="./images/image3.jpg" alt="image3.jpg"></div>
+  <div><img src="./images/image4.jpg" alt="image4.jpg"></div>
+</div>
+
+<p>It looks like the white borders are impacting the image and preventing clean split. What if we try to merge these three into an RGB image (using the image_to_RGB method in the notebook). Lets see what it looks like when we don&#x27;t remove any white borders.</p>
+
+<p><img src="./images/image5.jpg" alt="image5.jpg"></p>
+
+<p>It looks quite distorted where the white border appears to be impacting the relative positioning to a significant degree. So lets try to come up with an algorithm to remove the white borders.</p>
+
+<p>So lets try to take vertical and horizontal slices of the image to make it smaller and easier to work with. We use the following code (the image_border_remove method in the assignment code implements the full approach)</p>
+
+<pre>height,width = image_array.shape[0], image_array.shape[1]
+image_vertical_slices = image_array[:,::width//10]
+image_horizontal_slices = image_array[::height//10,:]</pre>
+
+<p>And these can be seen as follows :</p>
+
+<div class="image-row">
+  <div><img src="./images/image6.jpg" alt="image6.jpg"></div>
+  <div><img src="./images/image7.jpg" alt="image7.jpg"></div>
+</div>
+
+<p>So the image_vertical_slices and image_horizontal_slices images are essentially around 10 vertical or horizontal lines extracted along the width and height. This allows us to visualize what the white borders look like compressed so we can build some logic to remove it.</p>
+
+<p>Lets look at the first row for the image_vertical_slices array.</p>
+
+<pre>image_vertical_slices[0,:] &gt; array([255, 255, 255, 255, 255, 255, 255, 255, 255, 255], dtype=uint8)</pre>
+
+<p>So we know that the white border at the top of the image corresponds to a continuous array of a 255 value. And this is the same for the bottom border, as well as the left and right borders obtained from the image_horizontal_slices.</p>
+
+<p>We can implement the following pseudocode to then remove these borders.</p>
+
+<ol>
+  <li>Initialize coordinates for the column values for side borders, and row values for the top / bottom white borders. </li>
+  <li>For each row and column value, check whether that row or column corresponds to a white border while including some margin of error. </li>
+  <li>For each row or column value assumed to have a white border, move it closer to the center of the image. </li>
+  <li>Loop until the white border check is no longer satisfied. </li>
+  <li>Crop the image at the newly found borders.</li>
+</ol>
+
+<p>Lets see what the image looks like now with the white borders removed using this algorithm.</p>
+
+<p><img src="./images/image8.jpg" alt="image8.jpg"></p>
+
+<p>Now recreating the RGB using the same approach as above but now with the borders removed. Lets look at a few images.</p>
+
+<div class="image-row">
+  <div><img src="./images/image9.jpg" alt="image9.jpg"></div>
+  <div><img src="./images/image10.jpg" alt="image10.jpg"></div>
+  <div><img src="./images/image11.jpg" alt="image11.jpg"></div>
+</div>
+
+<p>Now this looks much better. We see some distortion due to the misalignment between the RGB channels but now we can start working on the alignment.</p>
+
+<p>We build our single scale alignment method (implemented as image_registration in the assignment code) by taking the following design approach.</p>
+
+<ul>
+  <li>We make the method agnostic to the comparison metric being used such that we provide the metric function as an input argument.</li>
+  <li>We implement a variable search window around which to search for the best match. We provide this as an integer argument &#x27;search_range&#x27; to the alignment method.</li>
+</ul>
+
+<p>The search_range parameter essentially generates a square array of offsets where we shift channel 0 (Red) and channel 1 (Green) relative to channel 2 (Blue) and find their respective offsets by checking the location maximum of the calculated comparison metric in that array. We obtain the offsets by adjusting for the search range parameter in the array offset since indexing in the array starts at [0,0] which corresponds to a channel shift of [-search_range, - search_range].</p>
+
+<p>In each of the previous unaligned images we see that the borders show artifacts due to an imperfect slicing of the images. These artifacts can impact the comparison metric calculation, so we remove 10% of the borders for each of the images to focus our alignment comparison on the central body of the image.</p>
+
+<p>One implementation aspect to note here is that we have two types of comparison metrics, a Normalized Cross Correlation (NCC), and an L2 distance metric. For the former, we need to find the offset with the maximum cross correlation value which would correspond to the best alignment. For the latter we need to find the minimum distance value to find the best alignment.</p>
+
+<p>Our metric agnostic image alignment method however takes the metric function as an input, and finds the maximum value across many comparisons. Since this maximum finding approach is incompatible with a plain L2 distance metric, we create a new L2 distance function that simply multiplies the value by -1 (implemented as image_L2_distance_argmax_adjust). Finding the maximum of the inverted values is then identical to finding the minimum value.</p>
+
+<p>We now run our alignment method on each of the above three images to find the best offset for each of the channels. The function returns a tuple of two offsets, The first corresponds to the offset needed to align the R channel, and second is the offset to align the G channel.</p>
+
+<p>The offsets for the above 3 images are obtained as follows.</p>
+
+<pre>((3, 0), (2, 0))
+((0, -1), (0, 1))
+((3, -3), (2, -1))</pre>
+
+<p>And after alignment we see the results as follows.</p>
+
+<div class="image-row">
+  <div><img src="./images/image12.jpg" alt="image12.jpg"></div>
+  <div><img src="./images/image13.jpg" alt="image13.jpg"></div>
+  <div><img src="./images/image14.jpg" alt="image14.jpg"></div>
+</div>
+
+<p>The alignment mismatch artifacts seen previously are now gone and the images appear to be clear.</p>
+
+<p>Now if we want to align larger images, this can become prohibitively compute intensive since we can&#x27;t do a brute force sweep over large ranges to find the best alignment. In this case we can construct image pyramids. Essentially speeding up the process by finding the best alignment after subsampling the large image. The subsampling method implemented for this project (named image_subsample_x2 in the assignment code) returns an image 1/4th the original size.</p>
+
+<p>We use this subsampling approach to construct an image pyramid by recursively calling the single scale image alignment method developed above. The pseudocode for this recursive approach is as follows.</p>
+
+<pre>- define multiscale_offset_estimation -&gt; 
+- Input args : image, comparison_metric_function, search_range, image_width_threshold
+- if image width &gt; image_width threshold : 
+-	downsampled_image = downsample(image)
+-	downsampled_offsets = multiscale_offset_estimation(downsampled_image)
+- 	Adjust downsampled offsets for current scale by inverting the downsampling scale (by multiplying x2) 
+- 	Shift Channels 0 (R) and Channel 1 (G) with the current scale offsets -&gt; partially_aligned_image
+-	delta_offsets = single_scale_offset_estimation(partially_aligned_image)
+- 	offsets = current_offsets + delta_offsets
+- if image width &lt; image_width threshold : 
+- 	offsets = single_scale_offset_estimation(image)
+- return offsets</pre>
+
+<p>We essentially keep subsampling the image until the width of the image goes below some threshold, at which point we use the single scale alingment to obtain the offsets of that scale. Then the on the upper scale, these offsets are upscaled with the previous image having its channels aligned accordingly. <br>
+Then we run the single scale alignment on this partially aligned image, to find the delta offset that was missed due to the subsampling. We continue this recursively up the image pyramid to larger resolutions to obtain the final result.</p>
+
+<p>We sample three of the larger images to demonstrate the output and results. Before alignment the images look as follows. Note that these have been downsampled to show on this webpage.</p>
+
+<div class="image-row">
+  <div><img src="./images/image15.jpg" alt="image15.jpg"></div>
+  <div><img src="./images/image16.jpg" alt="image16.jpg"></div>
+  <div><img src="./images/image17.jpg" alt="image17.jpg"></div>
+</div>
+
+<p>Passing these full scale images into the multi-scale alignment method, we find the following offsets for each respective input.</p>
+
+<pre>((32, -27), (5, -14))
+((77, 7), (44, 0))
+((11, -26), (8, -16))</pre>
+
+<p>Adjusting for these offsets we get the following aligned images. Note that these are again downsampled for viewing on the webpage. The full sized images are available in the uploaded directory</p>
+
+<div class="image-row">
+  <div><img src="./images/image18.jpg" alt="image18.jpg"></div>
+  <div><img src="./images/image19.jpg" alt="image19.jpg"></div>
+  <div><img src="./images/image20.jpg" alt="image20.jpg"></div>
+</div>
+
+<p>The results look to be very aligned. Note that for all the alignments above we used the NCC metric with a search range of 5 and width threshold of 120. this corresponds to a sweep from [-5,-5] , [5,5] which would correspond to about 8.3% maximum allowable shift between subsequent channels for width. So with these settings there is an upper limit to the maximum misalignment between channels. For larger misalignments, the search range would need to be increased but this comes at a cost of more time needed for alignment checks.</p>
+
+<p>The following table shows the alignment processing times for all the images for different selections of the comparison metric as well as the search range and width threshold values.</p>
+
+<table border="1">
+  <tr>
+    <th rowspan="2">Image</th>
+    <th colspan="2">NCC</th>
+    <th colspan="2">L2</th>
+  </tr>
+  <tr>
+    <th>Search Range: 5<br>Width Threshold: 120</th>
+    <th>Search Range: 10<br>Width Threshold: 320</th>
+    <th>Search Range: 5<br>Width Threshold: 120</th>
+    <th>Search Range: 10<br>Width Threshold: 320</th>
+  </tr>
+
+  <tr>
+    <td>00804v.jpg</td>
+    <td>((-4, -1), (-2, -1))<br>0.147642 s</td>
+    <td>((-4, -1), (-2, -1))<br>0.293232 s</td>
+    <td>((-4, -1), (-2, -1))<br>0.055614 s</td>
+    <td>((-4, -1), (-2, -1))<br>0.139145 s</td>
+  </tr>
+
+  <tr>
+    <td>10131v.jpg</td>
+    <td>((3, 0), (2, 0))<br>0.124905 s</td>
+    <td>((3, 0), (2, 0))<br>0.383188 s</td>
+    <td>((3, 0), (2, 0))<br>0.088869 s</td>
+    <td>((3, 0), (2, 0))<br>0.125034 s</td>
+  </tr>
+
+  <tr>
+    <td>01861a.jpg</td>
+    <td>((62, -20), (38, -13))<br>17.266958 s</td>
+    <td>((62, -20), (38, -13))<br>64.171956 s</td>
+    <td>((62, -20), (38, -13))<br>7.762581 s</td>
+    <td>((62, -20), (38, -13))<br>29.581113 s</td>
+  </tr>
+
+  <tr>
+    <td>00163v.jpg</td>
+    <td>((1, -10), (1, -5))<br>0.120508 s</td>
+    <td>((1, -10), (1, -5))<br>0.288177 s</td>
+    <td>((1, -10), (1, -5))<br>0.055861 s</td>
+    <td>((1, -10), (1, -5))<br>0.131226 s</td>
+  </tr>
+
+  <tr>
+    <td>01657u.jpg</td>
+    <td>((11, -26), (8, -16))<br>17.318569 s</td>
+    <td>((11, -26), (8, -16))<br>62.500015 s</td>
+    <td>((11, -26), (8, -16))<br>7.504109 s</td>
+    <td>((11, -26), (8, -16))<br>28.342955 s</td>
+  </tr>
+
+  <tr>
+    <td>01598v.jpg</td>
+    <td>((-1, -1), (0, -1))<br>0.112574 s</td>
+    <td>((-1, -1), (0, -1))<br>0.290464 s</td>
+    <td>((-1, -1), (0, -1))<br>0.056580 s</td>
+    <td>((-1, -1), (0, -1))<br>0.137602 s</td>
+  </tr>
+
+  <tr>
+    <td>00125v.jpg</td>
+    <td>((1, -4), (2, -1))<br>0.118348 s</td>
+    <td>((1, -4), (2, -1))<br>0.287322 s</td>
+    <td>((1, -4), (2, -1))<br>0.064198 s</td>
+    <td>((1, -4), (2, -1))<br>0.133413 s</td>
+  </tr>
+
+  <tr>
+    <td>01728v.jpg</td>
+    <td>((1, 0), (1, -1))<br>0.106971 s</td>
+    <td>((1, 0), (1, -1))<br>0.275012 s</td>
+    <td>((1, 0), (1, -1))<br>0.054728 s</td>
+    <td>((1, 0), (1, -1))<br>0.124908 s</td>
+  </tr>
+
+  <tr>
+    <td>31421v.jpg</td>
+    <td>((0, -1), (0, 1))<br>0.110355 s</td>
+    <td>((0, -1), (0, 1))<br>0.315323 s</td>
+    <td>((0, -1), (0, 1))<br>0.054724 s</td>
+    <td>((0, -1), (0, 1))<br>0.128292 s</td>
+  </tr>
+
+  <tr>
+    <td>01597v.jpg</td>
+    <td>((1, 0), (1, -1))<br>0.122138 s</td>
+    <td>((1, 0), (1, -1))<br>0.282381 s</td>
+    <td>((1, 0), (1, -1))<br>0.056256 s</td>
+    <td>((1, 0), (1, -1))<br>0.124784 s</td>
+  </tr>
+
+  <tr>
+    <td>01047u.jpg</td>
+    <td>((33, 7), (20, -8))<br>17.453284 s</td>
+    <td>((33, 7), (20, -8))<br>65.984938 s</td>
+    <td>((33, 7), (20, -8))<br>7.902016 s</td>
+    <td>((33, 7), (20, -8))<br>28.307939 s</td>
+  </tr>
+
+  <tr>
+    <td>01164v.jpg</td>
+    <td>((3, -3), (2, -1))<br>0.107454 s</td>
+    <td>((3, -3), (2, -1))<br>0.272593 s</td>
+    <td>((3, -3), (2, -1))<br>0.058408 s</td>
+    <td>((3, -3), (2, -1))<br>0.132896 s</td>
+  </tr>
+
+  <tr>
+    <td>01725u.jpg</td>
+    <td>((77, 7), (44, 0))<br>17.562686 s</td>
+    <td>((77, 7), (44, 0))<br>63.535722 s</td>
+    <td>((77, 7), (44, 0))<br>7.566715 s</td>
+    <td>((77, 7), (44, 0))<br>27.288889 s</td>
+  </tr>
+
+  <tr>
+    <td>01007a.jpg</td>
+    <td>((13, -21), (14, -15))<br>17.540303 s</td>
+    <td>((13, -21), (14, -15))<br>63.744143 s</td>
+    <td>((13, -21), (14, -15))<br>7.705789 s</td>
+    <td>((13, -21), (14, -15))<br>28.814119 s</td>
+  </tr>
+
+  <tr>
+    <td>00056v.jpg</td>
+    <td>((1, 1), (1, 0))<br>0.119656 s</td>
+    <td>((1, 1), (1, 0))<br>0.295902 s</td>
+    <td>((1, 1), (1, 0))<br>0.055231 s</td>
+    <td>((1, 1), (1, 0))<br>0.126691 s</td>
+  </tr>
+
+  <tr>
+    <td>00458u.jpg</td>
+    <td>((32, -27), (5, -14))<br>17.859119 s</td>
+    <td>((32, -27), (5, -14))<br>65.576834 s</td>
+    <td>((32, -27), (5, -14))<br>7.975392 s</td>
+    <td>((32, -27), (5, -14))<br>28.657936 s</td>
+  </tr>
+
+  <tr>
+    <td>01269v.jpg</td>
+    <td>((3, -2), (2, -2))<br>0.111132 s</td>
+    <td>((3, -2), (2, -2))<br>0.287628 s</td>
+    <td>((3, -2), (2, -2))<br>0.054918 s</td>
+    <td>((3, -2), (2, -2))<br>0.126872 s</td>
+  </tr>
+
+  <tr>
+    <td>01522v.jpg</td>
+    <td>((1, 1), (2, 0))<br>0.123074 s</td>
+    <td>((1, 1), (2, 0))<br>0.275329 s</td>
+    <td>((1, 1), (2, 0))<br>0.055709 s</td>
+    <td>((1, 1), (2, 0))<br>0.125086 s</td>
+  </tr>
+</table>
+
+<h2>Bonus</h2>
+
+<p>We also test this algorithm on a Hubble image of the Butterfly Nebula designation NGC 6302. We colorize the combination of the following three recordings.</p>
+
+<pre>hst_11504_01_wfc3_uvis_f502n_sci.fits
+hst_11504_01_wfc3_uvis_f656n_sci.fits
+hst_11504_01_wfc3_uvis_f658n_sci.fits</pre>
+
+<p>These images already appear to be aligned in the data, so we manually add a shift to two of these frames and then check whether out algorithm can find the right alignment. We shift the Red channel by x,y offsets of (30, 40) and the Green channel by offsets (20,10). This unaligned colorization looks as follows</p>
+
+<p><img src="./images/image21.jpg" alt="image21.jpg"></p>
+
+<p>Running this through the multiscale alignment algorithm, we find the following offset. <br>
+((-40, -30), (-20, -10))</p>
+
+<p>This is exactly the offset we manually introduced. The final result looks as follows.</p>
+
+<p><img src="./images/image22.jpg" alt="image22.jpg"></p>
+
+<p>Pretty neat.</p>
+</body>
+</html>
