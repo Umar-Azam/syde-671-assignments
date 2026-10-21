@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SYDE671 Assignment 2</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  margin: 20px;
+}
+img {
+  max-width: 100%;
+  height: auto;
+}
+.image-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.image-row > div {
+  flex: 1;
+  min-width: 0;
+}
+pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 640px) {
+  .image-row {
+    flex-wrap: wrap;
+  }
+  .image-row > div {
+    flex: 1 1 45%;
+  }
+}
+</style>
+</head>
+<body>
+<h1>SYDE671 Assignment 2</h1>
+
+
+<h2>Part 1.1 - Convolutions from Scratch</h2>
+
+<p>My dear friend the UWaterloo duck again volunteered to take my place. Kept saying something about biometric identification data should not be on the open internet due to deepfake impersonation and other cybersecurity concerns ? Anyway, I start with a 9x9 box filter and finite difference operators, using the custom convolution function generate some convolutions as can be seen below.</p>
+
+<div class="image-row">
+  <div><img src="./assets/p1_duck.png" alt="Duck"></div>
+  <div><img src="./assets/p1_duck_blur.png" alt="Duck blur"></div>
+  <div><img src="./assets/p1_duck_dx.png" alt="Duck dx"></div>
+  <div><img src="./assets/p1_duck_dy.png" alt="Duck dy"></div>
+</div>
+
+<div class="image-row">
+  <div><img src="./assets/p1_cameraman.png" alt="Cameraman"></div>
+  <div><img src="./assets/p1_box_blur.png" alt="Box blur"></div>
+  <div><img src="./assets/p1_dx.png" alt="Dx"></div>
+  <div><img src="./assets/p1_dy.png" alt="Dy"></div>
+</div>
+
+<h3>Four-loop implementation</h3>
+
+<pre><code>import numpy as np
+
+def image_convolution_x4_forloops(image, kernel):
+
+    kernel_height, kernel_width = kernel.shape
+    image_height, image_width = image.shape
+    output_height = image_height - kernel_height + 1
+    output_width = image_width - kernel_width + 1
+    output = np.zeros((output_height, output_width))
+    
+    for i in range(output_height):
+        for j in range(output_width):
+            region = image[i:i+kernel_height, j:j+kernel_width]
+            sum = 0
+            for m in range(kernel_height):
+                for n in range(kernel_width):
+                    sum += region[m, n] * kernel[m, n]
+            output[i, j] = sum
+
+    return output</code></pre>
+
+<h3>Two-loop implementation with zero padding</h3>
+
+<pre><code>def image_convolution(image, kernel, padding = (0,0)):
+    if padding != (0,0):
+        image = np.pad(image, ((padding[0], padding[0]), (padding[1], padding[1])), mode=&#x27;constant&#x27;, constant_values=0)
+
+    kernel = kernel[::-1, ::-1]  # Flip the kernel for convolution
+    
+    kernel_height, kernel_width = kernel.shape
+    image_height, image_width = image.shape
+    output_height = image_height - kernel_height + 1
+    output_width = image_width - kernel_width + 1
+    output = np.zeros((output_height, output_width))
+    
+    for i in range(output_height):
+        for j in range(output_width):
+            region = image[i:i+kernel_height, j:j+kernel_width]
+            output[i, j] = np.sum(region * kernel)
+    
+    return output</code></pre>
+
+<p>The runtime for the scipy convolution function is found to be quite a lot faster than the one manually coded above. This is attributed to the backend optimizations for faster parallelized processing in the scipy library.</p>
+
+<h2>Part 1.2 - Finite Difference Operator</h2>
+
+<p>The horizontal and vertical derivatives give the gradient magnitude. Here I use a threshold of 80 to form the binary image. At higher or lower values I found that either the edges were not strong enough to cross the threshold or the derivative noise started showing up in the thresholded image. The magnitude is calculated with a simple L2 norm.</p>
+
+<div class="image-row">
+  <div><img src="./assets/p1_dx.png" alt="Dx"></div>
+  <div><img src="./assets/p1_dy.png" alt="Dy"></div>
+  <div><img src="./assets/p1_gradient_magnitude.png" alt="Gradient magnitude"></div>
+  <div><img src="./assets/p1_edges.png" alt="Edges"></div>
+</div>
+
+<h2>Part 1.3 - Derivative of Gaussian</h2>
+
+<p>Now lets compare differentiating the original image with differentiating a Gaussian-blurred version.</p>
+
+<div class="image-row">
+  <div><img src="./assets/p1_gaussian_blur.png" alt="Gaussian blur"></div>
+  <div><img src="./assets/p1_blurred_dx.png" alt="Blurred dx"></div>
+  <div><img src="./assets/p1_blurred_dy.png" alt="Blurred dy"></div>
+  <div><img src="./assets/p1_blurred_edges.png" alt="Blurred edges"></div>
+</div>
+
+<p>The Gaussian can also be combined with each derivative operator before filtering the image.</p>
+
+<p><img src="./assets/p1_gaussian_dog_filters.png" alt="Gaussian dog filters"></p>
+
+<div class="image-row">
+  <div><img src="./assets/p1_dog_dx.png" alt="Dog dx"></div>
+  <div><img src="./assets/p1_dog_dy.png" alt="Dog dy"></div>
+  <div><img src="./assets/p1_dog_edges.png" alt="Dog edges"></div>
+</div>
+
+<p>Since the convolution operation is associative, we find that first blurring the image and then applying the difference operator is equivalent to applying the difference operator to the blurring filter and then applying the combined Derivative of Gaussians (DoG) filter to the image. The results look visually identical like above</p>
+
+<h2>Part 1 - Bells and Whistles: Gradient Orientation</h2>
+
+<p>Since the constraint here is to not use any built in angle function, we need to get a little creative. Interestingly there is a somewhat similar clarke transformation used in electrical machine 3-Phase AC analysis to convert 3 waveforms 120 degrees out of phase with each other to a representation that is 90 degrees from each other or at right angles. And looking at the cyclical color wheel we can apply a similar mapping to the dx, -dx, dy and -dy values on this wheel. And we know that interpolant colors are simply combinations of rgb, this gives us a good mapping from dx and dy axes to the full color wheel.</p>
+
+<div class="image-row">
+  <div><img src="./assets/p1_orientation_reference.png" alt="Orientation reference"></div>
+  <div><img src="./assets/p1_gradient_orientation.png" alt="Gradient orientation"></div>
+</div>
+
+<h2>Part 2.1 - Image Sharpening</h2>
+
+<p>To develop the unsharp filter as described in the document, we can first derive the formula of the combined filter. Using an impulse response filter when unity multiplication is needed to separate the sharpening and blurring components together into a single filter</p>
+
+<pre><code># Derivation
+# I_blur = I * K
+# I_high = I - I_blur
+# I_sharp = I + sharpening_factor * I_high
+# I_sharp = I + sharpening_factor * ( I -  I * K)
+# I_sharp = I * [( 1 + sharpening_factor) x Impulse - sharpening_factor x K )</code></pre>
+
+<p>Using the Taj Mahal and Ziggurat images to compare the original, blurred, high frequency, and sharpened results.</p>
+
+<div class="image-row">
+  <div><img src="./assets/p2_taj_original.png" alt="Taj original"></div>
+  <div><img src="./assets/p2_taj_blurred.png" alt="Taj blurred"></div>
+  <div><img src="./assets/p2_taj_high_frequency.png" alt="Taj high frequency"></div>
+  <div><img src="./assets/p2_taj_sharpened.png" alt="Taj sharpened"></div>
+</div>
+
+<div class="image-row">
+  <div><img src="./assets/p2_ziggurat_original.png" alt="Ziggurat original"></div>
+  <div><img src="./assets/p2_ziggurat_blurred.png" alt="Ziggurat blurred"></div>
+  <div><img src="./assets/p2_ziggurat_high_frequency.png" alt="Ziggurat high frequency"></div>
+  <div><img src="./assets/p2_ziggurat_sharpened.png" alt="Ziggurat sharpened"></div>
+</div>
+
+<p>Now lets blur a sharp image and try sharpening it again.</p>
+
+<div class="image-row">
+  <div><img src="./assets/p2_ziggurat_original.png" alt="Ziggurat original"></div>
+  <div><img src="./assets/p2_ziggurat_blurred.png" alt="Ziggurat blurred"></div>
+  <div><img src="./assets/p2_ziggurat_resharpened.png" alt="Ziggurat resharpened"></div>
+  <div><img src="./assets/p2_ziggurat_resharpened2.png" alt="Ziggurat resharpened2"></div>
+</div>
+
+<p>After resharpening, it does look like some of the detail is recovered but increasing it past a certain threshold does not produce better results. This is likely due to the fact that once the high frequency is removed, amplifying the remaining high frequency components does not fully recover the original frequency that were filtered out.</p>
+
+<h2>Part 2.2 - Hybrid Images</h2>
+
+<p>For this section, we try to first align the two images using some python code in the align_coords.py file. For each of these images I also crop it to center the image on the face and remove as much of the edge artifacts due to alignment so they do not overwhelm the convolution.</p>
+
+<div class="image-row">
+  <div><img src="./assets/p2_derek_original.jpg" alt="Derek original"></div>
+  <div><img src="./assets/p2_nutmeg_original.jpg" alt="Nutmeg original"></div>
+</div>
+
+<div class="image-row">
+  <div><img src="./assets/p2_derek_aligned.png" alt="Derek aligned"></div>
+  <div><img src="./assets/p2_nutmeg_aligned.png" alt="Nutmeg aligned"></div>
+</div>
+
+<p>Review the frequency plots of the images, it is notable that the high pass filter still shows some data in in the low frequency region of the. High sigma values remove more of the high frequency components. So by some iteration and selecting a low pass sigma 10 and high pass sigma 4, we ensure that there is some frequency gap in between that can allow for the far/near image visualization behavior.</p>
+
+<p><img src="./assets/p2_hybrid_frequency_analysis.png" alt="Hybrid frequency analysis"></p>
+
+<p>The frequency plots below use the final hybrid settings: low pass sigma 10 and high pass sigma 4.</p>
+
+<div class="image-row">
+  <div><img src="./assets/p2_derek_lowpass.png" alt="Derek lowpass"></div>
+  <div><img src="./assets/p2_nutmeg_highpass_sigma4.png" alt="Nutmeg highpass sigma4"></div>
+  <div><img src="./assets/p2_derek_nutmeg_hybrid.png" alt="Derek nutmeg hybrid"></div>
+</div>
+
+<p>We try two more hybrids. First the spidermonkey</p>
+
+<div class="image-row">
+  <div><img src="./assets/p2_monkey_original.jpg" alt="Monkey original"></div>
+  <div><img src="./assets/p2_spider_original.jpg" alt="Spider original"></div>
+  <div><img src="./assets/p2_monkey_spider_hybrid.png" alt="Monkey spider hybrid"></div>
+</div>
+
+<p>And then a combination of batman and ironman, also known as man-man. Bat-Iron if you&#x27;d like</p>
+
+<div class="image-row">
+  <div><img src="./assets/p2_batman_original.png" alt="Batman original"></div>
+  <div><img src="./assets/p2_ironman_original.png" alt="Ironman original"></div>
+  <div><img src="./assets/p2_batman_ironman_hybrid.png" alt="Batman ironman hybrid"></div>
+</div>
+
+<p>For these results again the sigma values were adjusted based on the frequency components in the images to ensure the visual effect stays consistent.</p>
+
+<h2>Part 2.2 - Bells and Whistles: Color Variations</h2>
+
+<p>Here I compare Derek in color with Nutmeg in grayscale, the reverse combination, and both images in color. Whats notable here is that the color in low frequency is nearly identical to both in color. So the color in the sharp portion does not really impact the final output, this is likely due to the fact that most color is contained within the body of the image, and the high frequency removal consequently also removes the color from the images.</p>
+
+<p><img src="./assets/p2_color_hybrid_variations.png" alt="Color hybrid variations"></p>
+
+<h2>Part 2.3 - Gaussian and Laplacian Stacks</h2>
+
+<p>Following the algorithm as in the linked paper we construct Gaussian and Laplacian stacks. Each gaussian level is more blurred and Laplacian levels store differences between adjacent Gaussian levels by approximating the second derivative with a difference of gaussians. The final blurred image retained for reconstruction. The stacks for the orange and the apple look as follows.</p>
+
+<p><img src="./assets/p2_gaussian_laplacian_stacks.png" alt="Gaussian laplacian stacks"></p>
+
+<h2>Part 2.4 - Multiresolution Blending: The Oraple</h2>
+
+<p>By creating a mask for each channel of an RGB image and blending each separately we obtain the following colored oraple image. Each mask is also blended with the same gaussian stack to create a smooth seam for a weighted combination of two images. Without this blurring I noticed that the seams were very sharp and not nearly as smooth of a transition across them.</p>
+
+<p><img src="./assets/p2_oraple.png" alt="Oraple"></p>
+
+<p>Recreating the figure 3.42 from the paper by visualizing contributions at levels 0, 2, and 4, followed by the reconstructed result.</p>
+
+<p><img src="./assets/p2_figure_3_42.png" alt="Figure 3 42"></p>
+
+<h2>Part 2.4 - Custom Blends</h2>
+
+<p>For custom blends I use a curved mask for Earth and the Moon, then two overlapping circles for the Mars/Earth blend.</p>
+
+<p>The eoon looks as follows.</p>
+
+<p><img src="./assets/p2_earth_moon_blend.png" alt="Earth moon blend"></p>
+
+<p>Now for the ears.</p>
+
+<p><img src="./assets/p2_earth_mars_blend.png" alt="Earth mars blend"></p>
+
+<p>Hopefully the earth doesn&#x27;t look like that in the future.</p>
+
+<h2>What I Learned</h2>
+
+<p>This was an interesting assignment in that it brought into perspective the application of signals analysis to computer vision applications and to the extent to which it is interlinked and dependendent on what we study in signals processing. These are the foundational elements of biological perception and taking a computational route to generate artifacts to probe how we see and understand visual data is something I had not given too much thought to before.</p>
+
+</body>
+</html>
