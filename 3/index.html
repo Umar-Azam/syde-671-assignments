@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SYDE671 Assignment 3</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  margin: 20px;
+}
+img {
+  max-width: 100%;
+  height: auto;
+}
+.image-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.image-row > div {
+  flex: 1;
+  min-width: 0;
+}
+pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 640px) {
+  .image-row {
+    flex-wrap: wrap;
+  }
+  .image-row > div {
+    flex: 1 1 45%;
+  }
+}
+</style>
+</head>
+<body>
+<h1>SYDE671 Assignment 3</h1>
+
+<h2>Part 1 - Image Warping and Mosaicing</h2>
+
+<p>In this first portion we explore warping and blending of images in a very precise manner using a homograph transform that we calculate. We find that this enables us to create interesting panoramic images.</p>
+
+<h3>A1 - Shoot the Pictures</h3>
+
+<p>The corrspondences in these two images were manually selected based on sharp landmark features in the two views.</p>
+
+<p><img src="./images/a2_manual_correspondences.png" alt="Manually selected correspondences between the two source photographs" width="1570" height="397"></p>
+
+<div class="image-row">
+  <div><img src="./images/a1_source_set2_image1.png" alt="Second source set, image 1" width="811" height="405"></div>
+  <div><img src="./images/a1_source_set2_image2.png" alt="Second source set, image 2" width="811" height="405"></div>
+  <div><img src="./images/a1_source_set2_image3.png" alt="Second source set, image 3" width="811" height="405"></div>
+</div>
+
+<h3>A2 - Recover Homographies</h3>
+
+<p>We construct a system of equations of the form Ah = b, it could also have been Ah = 0, where b value would have been included in the A matrix, and h would have been 9 elements instead of 8. The final system would have been identical in both cases.</p>
+
+<p>The A Matrix is extracted as follows :</p>
+
+<p><img src="./images/a1_A_matrix.png" alt="Coefficient matrix A for the homography system" width="412" height="340"></p>
+
+<p>The b Matrix is :</p>
+
+<p><img src="./images/a1_b_matrix.png" alt="Vector b for the homography system" width="49" height="341"></p>
+
+<p>And we find that the recovered H matrix is :</p>
+
+<p><img src="./images/a1_H_matrix.png" alt="Recovered homography matrix H" width="554" height="72"></p>
+
+<h3>A3 - Image Warping and Rectification</h3>
+
+<p>We use inverse warping as mentioned in the assignment to ensure that we don&#x27;t leave any holes, which is what would have happened if we had iterated in each column and row of the unwarped image. We do simple checks to see when iterating through the target image&#x27;s rows/cols that we are inside the source image.</p>
+
+<p>We try to fix a historical architectural failure. If only in a warped image. We do need to be careful to ensure that not all the marked points lie on the same line, which would result in a degenerate homography matrix, so adding some on the other side of the tower ensure that we converged to a non-degenerate solution.</p>
+
+<div class="image-row">
+  <div><img src="./images/a3_warp_nearest_neighbor.png" alt="Image warped using nearest neighbor interpolation" width="793" height="434"></div>
+  <div><img src="./images/a3_warp_bilinear.png" alt="Image warped using bilinear interpolation" width="793" height="434"></div>
+</div>
+
+<div class="image-row">
+  <div><img src="./images/a3_rectification_original.png" alt="Original Tower of Pisa image with selected rectification points" width="311" height="405"></div>
+  <div><img src="./images/a3_rectification_nearest_neighbor.png" alt="Rectified Tower of Pisa using nearest neighbor interpolation" width="324" height="405"></div>
+</div>
+
+<h3>A4 - Blending Images into a Mosaic</h3>
+
+<p>We use the blending code from our previous assignment to blend the images. Although in this case we use a scikit conv2d method to do everything faster.</p>
+
+<p><img src="./images/a2_manual_correspondences.png" alt="Manually selected correspondences between the two source photographs" width="1570" height="397"></p>
+
+<div class="image-row">
+  <div><img src="./images/a4_unblended_alignment.png" alt="Aligned source images on a shared canvas before blending" width="1000" height="434"></div>
+  <div><img src="./images/a4_manual_mosaic.png" alt="Blended mosaic using manually selected correspondences" width="964" height="405"></div>
+</div>
+
+<h2>Part 2 -Feature Matching for Autostitching</h2>
+
+<h3>B1 - Harris Corner Detection and ANMS</h3>
+
+<p>We use the the provided script to generate corner candidates and following the procedure as outlined in the &quot;Multi-Image Matching using Multi-Scale Oriented Patches&quot; paper, we implement a nonmax suppression algorithm.</p>
+
+<div class="image-row">
+  <div><img src="./images/b1_anms_image1.png" alt="Harris corners after adaptive non-maximal suppression on image 1" width="811" height="405"></div>
+  <div><img src="./images/b1_anms_image2.png" alt="Harris corners after adaptive non-maximal suppression on image 2" width="811" height="405"></div>
+  <div><img src="./images/b1_anms_image3.png" alt="Harris corners after adaptive non-maximal suppression on image 3" width="811" height="405"></div>
+</div>
+
+<h3>B2 - Feature Descriptor Extraction</h3>
+
+<p>We extract 40x40 patches and use the gaussian kernel to smooth it similar to the previous assignments. Then we extract an 8x8 patch from it and remove the mean and adjsut its standard deviation to 1.</p>
+
+<p><img src="./images/b2_feature_descriptors.png" alt="Examples of normalized 8 by 8 feature descriptors from all three images" width="1157" height="690"></p>
+
+<h3>B3 - Feature Matching</h3>
+
+<p>Thhe approach outlined in the paper to validate correct matches is using a nearest-neighbour ratio. From figure 6b we select 0.5 as a good balance between correct to incorrect matches.</p>
+
+<div class="image-row">
+  <div><img src="./images/b3_matches_images1_2.png" alt="Feature matches between images 1 and 2" width="1570" height="419"></div>
+  <div><img src="./images/b3_matches_images2_3.png" alt="Feature matches between images 2 and 3" width="1570" height="419"></div>
+</div>
+
+<h3>B4 - RANSAC for Robust Homography</h3>
+
+<p>Next we employ the Random Sample Consensus algorithm to generate a list of best matches that remove potential outliers for a stable evaluation of the homography matrix. The results are as follows</p>
+
+<div class="image-row">
+  <div><img src="./images/b4_ransac_inliers_images1_2.png" alt="RANSAC inlier matches between images 1 and 2" width="1570" height="419"></div>
+  <div><img src="./images/b4_ransac_inliers_images2_3.png" alt="RANSAC inlier matches between images 2 and 3" width="1570" height="419"></div>
+</div>
+
+<div class="image-row">
+  <div><img src="./images/a1_source_set2_image1.png" alt="Second source set, image 1" width="811" height="405"></div>
+  <div><img src="./images/a1_source_set2_image2.png" alt="Second source set, image 2" width="811" height="405"></div>
+  <div><img src="./images/a1_source_set2_image3.png" alt="Second source set, image 3" width="811" height="405"></div>
+</div>
+
+<p><img src="./images/b4_automatic_mosaic_images1_2.png" alt="Automatically stitched mosaic of images 1 and 2" width="1069" height="504"></p>
+
+<p><img src="./images/b4_automatic_mosaic_images2_3.png" alt="Automatically stitched mosaic of images 2 and 3" width="1068" height="504"></p>
+
+<p><img src="./images/b4_automatic_mosaic_images1_2_3.png" alt="Automatically stitched mosaic of all three images" width="1385" height="504"></p>
+
+</body>
+</html>
